@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文化之旅 - 互动导游地图</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body, html {
+            height: 100%;
+            overflow: hidden;
+        }
+        
+        .splash-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            background: url('https://picsum.photos/id/1054/1920/1080') center/cover no-repeat;
+            /* 更换为更贴合文化主题的山水背景图 */
+        }
+        
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, rgba(54, 77, 65, 0.85) 0%, rgba(26, 53, 42, 0.9) 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 20px;
+        }
+        
+        /* 替换为文化符号图标容器 */
+        .culture-icon {
+            width: 140px;
+            height: 140px;
+            margin-bottom: 35px;
+            position: relative;
+            animation: float 3s infinite ease-in-out;
+        }
+        
+        .icon-inner {
+            width: 100%;
+            height: 100%;
+            background: url('https://picsum.photos/id/175/200/200') center/cover no-repeat;
+            border-radius: 50%;
+            border: 4px solid rgba(255, 255, 255, 0.8);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .icon-inner::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.15);
+        }
+        
+        h1 {
+            color: white;
+            font-size: 3.2rem;
+            margin-bottom: 18px;
+            text-shadow: 0 3px 15px rgba(0, 0, 0, 0.3);
+            animation: slideUp 1s ease-out;
+            font-weight: 300;
+            letter-spacing: 2px;
+        }
+        
+        p {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 1.25rem;
+            max-width: 650px;
+            margin-bottom: 45px;
+            line-height: 1.7;
+            animation: slideUp 1s ease-out 0.2s forwards;
+            opacity: 0;
+        }
+        
+        .enter-btn {
+            padding: 16px 45px;
+            background-color: white;
+            color: #2a5c45;
+            border: none;
+            border-radius: 35px;
+            font-size: 1.15rem;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+            transition: all 0.3s ease;
+            animation: slideUp 1s ease-out 0.4s forwards;
+            opacity: 0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .enter-btn:hover {
+            transform: translateY(-6px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.35);
+        }
+        
+        .image-grid {
+            position: absolute;
+            bottom: 35px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 15px;
+            animation: fadeIn 1s ease-out 0.6s forwards;
+            opacity: 0;
+        }
+        
+        .grid-img {
+            width: 65px;
+            height: 65px;
+            border-radius: 8px;
+            object-fit: cover;
+            border: 2px solid white;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+            transition: transform 0.4s ease;
+        }
+        
+        .grid-img:hover {
+            transform: scale(1.15) rotate(6deg);
+        }
+        
+        /* 新增装饰元素 */
+        .decor {
+            position: absolute;
+            width: 120px;
+            height: 120px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            z-index: 0;
+        }
+        
+        .decor-1 {
+            top: 20%;
+            left: 15%;
+            animation: rotate 20s infinite linear;
+        }
+        
+        .decor-2 {
+            bottom: 25%;
+            right: 18%;
+            animation: rotate 25s infinite linear reverse;
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-12px); }
+        }
+        
+        @keyframes slideUp {
+            from { 
+                transform: translateY(30px);
+                opacity: 0;
+            }
+            to { 
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2.4rem;
+            }
+            
+            p {
+                font-size: 1.1rem;
+                margin-bottom: 35px;
+            }
+            
+            .culture-icon {
+                width: 110px;
+                height: 110px;
+            }
+            
+            .grid-img {
+                width: 55px;
+                height: 55px;
+            }
+            
+            .enter-btn {
+                padding: 14px 35px;
+                font-size: 1rem;
+            }
+            
+            .decor {
+                width: 80px;
+                height: 80px;
+            }
+        }
+    </style>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="splash-container">
+        <div class="overlay">
+            <!-- 装饰元素 -->
+            <div class="decor decor-1"></div>
+            <div class="decor decor-2"></div>
+            
+            <!-- 替换为带图片的文化符号 -->
+            <div class="culture-icon">
+                <div class="icon-inner"></div>
+            </div>
+            
+            <h1>文化之旅</h1>
+            <p>探索七大古都的历史遗迹，与历史人物面对面交流，感受中华文明的魅力</p>
+            <button class="enter-btn" onclick="window.location.href='map.html'">
+                开始探索
+                <i class="fa fa-arrow-right"></i>
+            </button>
+        </div>
+        
+        <div class="image-grid">
+            <img src="https://i.imgs.ovh/2025/10/08/7DBJla.png" alt="广州塔" class="grid-img">
+            <img src="https://youke1.picui.cn/s1/2025/10/08/68e679836dcf6.png" alt="兵马俑" class="grid-img">
+            <img src="https://s21.ax1x.com/2025/10/08/pVHSCpd.png" alt="故宫" class="grid-img">
+            <img src="https://youke1.picui.cn/s1/2025/10/08/68e67fac1c939.png" alt="岳麓书院" class="grid-img">
+            <img src="https://s21.ax1x.com/2025/10/08/pVHpOIO.png" alt="明孝陵" class="grid-img">
+        </div>
+    </div>
+
+    <script>
+        // 自动进入功能（可选）
+        setTimeout(() => {
+            // 5秒后自动进入地图页面，如需关闭可注释此行
+            // window.location.href = 'map.html';
+        }, 5000);
+    </script>
+</body>
+</html>
+<!-- 导入页面中的按钮 -->
+<button class="enter-btn" onclick="window.location.href='map.html'">
+    开始探索
+    <i class="fa fa-arrow-right"></i>
+</button>

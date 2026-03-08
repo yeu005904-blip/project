@@ -1,0 +1,18 @@
+<!-- dialog.html 嵌入index.html的#dialog-module中 -->
+<div class="dialog-wrapper">
+  <!-- 标题区 -->
+  <h3 class="dialog-title">与历史人物对话</h3>
+  <!-- 预设话题区（3个固定按钮） -->
+  <div class="preset-topics">
+    <button class="topic-btn" data-topic="1">景点怎么建造的？</button>
+    <button class="topic-btn" data-topic="2">历史人物与景点的关联？</button>
+    <button class="topic-btn" data-topic="3">景点有哪些文化意义？</button>
+  </div>
+  <!-- 对话内容显示区（滚动容器，避免内容溢出） -->
+  <div class="dialog-content" id="dialogContent"></div>
+  <!-- 自定义提问区（输入框+发送按钮） -->
+  <div class="custom-question">
+    <input type="text" id="questionInput" placeholder="输入你想了解的问题...">
+    <button id="sendBtn">发送</button>
+  </div>
+</div>

@@ -1,0 +1,1113 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI旅忆地图交互</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        /* 主容器样式 */
+        .main-container {
+            display: flex;
+            gap: 15px;
+            padding: 0 15px 15px;
+        }
+        #map { 
+            flex: 1; 
+            height: 90vh; 
+            border: 1px solid #ddd; 
+            border-radius: 6px;
+        }
+        h1 { text-align: center; margin: 15px 0; }
+
+        /* 右侧面板样式 */
+        .right-panel {
+            width: 380px;
+            height: 90vh;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            background: #fff;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        .panel-header {
+            padding: 12px 15px;
+            background: #0078A8;
+            color: #fff;
+            font-weight: bold;
+            font-size: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .guide-btn {
+            padding: 5px 12px;
+            background: #fff;
+            color: #0078A8;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+        .guide-btn:hover { background: #f0f7ff; }
+        .guide-btn:disabled {
+            background: #f5f5f5;
+            color: #999;
+            cursor: not-allowed;
+        }
+
+        /* 预设话题区域 */
+        .preset-topics {
+            padding: 12px 15px;
+            border-bottom: 1px solid #eee;
+            max-height: 120px;
+            overflow-y: auto;
+        }
+        .topic-title {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+        .topic-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .topic-btn {
+            padding: 4px 10px;
+            background: #f0f7ff;
+            color: #0078A8;
+            border: 1px solid #e6f0ff;
+            border-radius: 16px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+        .topic-btn:hover {
+            background: #e6f0ff;
+            border-color: #cce5ff;
+        }
+
+        /* 对话内容区 */
+        .dialog-content {
+            flex: 1;
+            padding: 15px;
+            overflow-y: auto;
+            background: #f9f9f9;
+        }
+        .message {
+            margin-bottom: 12px;
+            max-width: 85%;
+            line-height: 1.5;
+        }
+        .message.guide { margin-right: auto; }
+        .message.guide .bubble {
+            background: #e6f0ff;
+            color: #005580;
+            border-radius: 18px 18px 18px 4px;
+        }
+        .message.user { margin-left: auto; }
+        .message.user .bubble {
+            background: #0078A8;
+            color: white;
+            border-radius: 18px 18px 4px 18px;
+        }
+        .message.loading .bubble {
+            background: #f5f5f5;
+            color: #666;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .bubble {
+            padding: 9px 15px;
+            display: inline-block;
+            font-size: 14px;
+        }
+        .loading-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #999;
+            animation: loading 1.2s infinite;
+        }
+        .loading-dot:nth-child(2) { animation-delay: 0.2s; }
+        .loading-dot:nth-child(3) { animation-delay: 0.4s; }
+
+        /* 输入区域 */
+        .input-area {
+            padding: 12px 15px;
+            border-top: 1px solid #eee;
+            display: flex;
+            gap: 10px;
+        }
+        .input-area input {
+            flex: 1;
+            padding: 10px 15px;
+            border: 1px solid #ddd;
+            border-radius: 20px;
+            outline: none;
+            font-size: 14px;
+            transition: border 0.2s;
+        }
+        .input-area input:focus {
+            border-color: #0078A8;
+            box-shadow: 0 0 0 2px rgba(0,120,168,0.1);
+        }
+        .input-area button {
+            width: 38px;
+            height: 38px;
+            background: #0078A8;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+        .input-area button:hover { background: #005580; }
+
+        /* 景点弹窗样式 */
+        .spot-item { 
+            cursor: pointer; 
+            color: #0078A8; 
+            padding: 5px 0; 
+            border-bottom: 1px dashed #eee;
+            transition: all 0.2s;
+        }
+        .spot-item:hover { 
+            color: #005580;
+            padding-left: 5px;
+        }
+        .popup-content { max-width: 300px; }
+        .spot-image {
+            width: 100%;
+            height: 180px;
+            object-fit: cover;
+            border-radius: 6px;
+            margin-bottom: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            /* 图片加载过渡效果 */
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+        }
+        .spot-image.loaded { opacity: 1; }
+        .spot-description {
+            font-size: 13px;
+            color: #555;
+            line-height: 1.5;
+            margin: 8px 0;
+            padding: 5px 0;
+            border-top: 1px dashed #eee;
+            border-bottom: 1px dashed #eee;
+            max-height: 120px;
+            overflow-y: auto;
+        }
+
+        /* 导游信息区域 */
+        .guide-container {
+            display: flex;
+            gap: 15px;
+            margin-top: 10px;
+            align-items: flex-start;
+        }
+        .guide-avatar {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background-color: #f0f7ff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+            border: 3px solid #e6f0ff;
+        }
+        .guide-avatar:hover { transform: scale(1.05) rotate(2deg); }
+        .guide-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .guide-info { flex: 1; }
+        .guide-name {
+            font-weight: bold;
+            color: #005580;
+            margin-bottom: 5px;
+            font-size: 16px;
+        }
+        .guide-reason {
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        .interaction-indicator {
+            margin-top: 8px;
+            font-size: 13px;
+            color: #0078A8;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+        }
+        .interaction-indicator i {
+            margin-right: 5px;
+            animation: pulse 1.5s infinite;
+        }
+        .back-to-city {
+            margin-top: 10px;
+            padding: 5px 10px;
+            background-color: #f0f7ff;
+            color: #0078A8;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            display: inline-block;
+            transition: background-color 0.2s;
+        }
+        .back-to-city:hover { background-color: #e6f0ff; }
+
+        /* 实用指南弹窗 */
+        .guide-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-content {
+            width: 90%;
+            max-width: 500px;
+            background: #fff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 5px 25px rgba(0,0,0,0.15);
+        }
+        .modal-header {
+            padding: 15px 20px;
+            background: #0078A8;
+            color: #fff;
+            font-weight: bold;
+            font-size: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .close-modal {
+            background: transparent;
+            border: none;
+            color: #fff;
+            font-size: 20px;
+            cursor: pointer;
+        }
+        .modal-body { padding: 20px; }
+        .guide-item { margin-bottom: 15px; }
+        .guide-item-title {
+            font-weight: bold;
+            color: #005580;
+            margin-bottom: 8px;
+            font-size: 15px;
+            display: flex;
+            align-items: center;
+        }
+        .guide-item-title i {
+            margin-right: 8px;
+            font-size: 16px;
+        }
+        .guide-item-content {
+            font-size: 14px;
+            color: #333;
+            line-height: 1.6;
+        }
+        .guide-item-content ul {
+            padding-left: 20px;
+            margin-top: 5px;
+        }
+        .guide-item-content li { margin-bottom: 4px; }
+
+        /* 动画效果 */
+        @keyframes pulse {
+            0% { opacity: 0.6; }
+            50% { opacity: 1; }
+            100% { opacity: 0.6; }
+        }
+        @keyframes loading {
+            0%, 100% { opacity: 0.5; transform: scale(0.8); }
+            50% { opacity: 1; transform: scale(1.2); }
+        }
+
+        /* 响应式适配 */
+        @media (max-width: 992px) {
+            .main-container { flex-direction: column; }
+            .right-panel {
+                width: 100%;
+                height: 50vh;
+                margin-top: 15px;
+            }
+        }
+    </style>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+</head>
+<body>
+    <h1>AI旅忆地图交互</h1>
+    <div class="main-container">
+        <div id="map"></div>
+        
+        <div class="right-panel">
+            <div class="panel-header">
+                <span id="panel-title">请点击地图上的城市和景点</span>
+                <button class="guide-btn" id="show-guide" disabled>
+                    <i class="fa fa-info-circle"></i> 实用指南
+                </button>
+            </div>
+            
+            <div class="preset-topics">
+                <div class="topic-title">预设话题（选择景点后显示）</div>
+                <div class="topic-buttons" id="topic-buttons">
+                    <button class="topic-btn" disabled>请先选择景点</button>
+                </div>
+            </div>
+            
+            <div class="dialog-content" id="right-dialog-content">
+                <div class="message guide">
+                    <div class="bubble">欢迎使用AI旅忆地图！请先点击左侧地图上的城市，再选择具体景点开始互动~</div>
+                </div>
+            </div>
+            
+            <div class="input-area">
+                <input type="text" id="right-user-input" placeholder="请选择景点后输入问题..." disabled>
+                <button id="right-send-btn" disabled><i class="fa fa-paper-plane"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <div class="guide-modal" id="guide-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span id="modal-title">景点实用指南</span>
+                <button class="close-modal" id="close-modal">&times;</button>
+            </div>
+            <div class="modal-body" id="modal-body"></div>
+        </div>
+    </div>
+
+    <script>
+        // 初始化地图
+        const map = L.map('map').setView([35.86, 104.20], 5);
+        L.tileLayer('https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}', {
+            subdomains: ['1', '2', '3', '4']
+        }).addTo(map);
+
+        // 城市数据
+        const cityData = [
+            { name: "广州市", lat: 23.1291, lng: 113.2644 },
+            { name: "西安市", lat: 34.2653, lng: 108.9547 },
+            { name: "武汉市", lat: 30.5928, lng: 114.3056 },
+            { name: "长沙市", lat: 28.1940, lng: 112.9827 },
+            { name: "成都市", lat: 30.5722, lng: 104.07 },
+            { name: "北京市", lat: 39.9042, lng: 116.4074 },
+            { name: "南京市", lat: 32.0603, lng: 118.7969 }
+        ];
+
+        // 景点-导游完整数据
+        const spotPersonData = {
+            "广州市": [
+                {
+                    name: "广州塔",
+                    person: "何镜堂",
+                    reason: "作为设计团队总负责人，以'两观三性'建筑理念塑造了这一时代地标",
+                    spotImg: "https://i.imgs.ovh/2025/10/08/7DBJla.png",
+                    guideImg: "https://i.imgs.ovh/2025/10/08/7DBKMN.png",
+                    initialMessage: "你好！我是何镜堂，广州塔的主设计师。想了解这座建筑的设计故事吗？",
+                    description: "广州塔又称小蛮腰，位于广州市海珠区（艺洲岛）赤岗塔附近，距离珠江南岸125米，与珠江新城、花城广场、海心沙岛隔江相望。塔身主体高454米，天线桅杆高146米，总高度600米，是中国第一高塔，世界第四高塔。",
+                    dialog: [
+                        { "topic": "广州塔的设计有什么特别之处？", "answer": "广州塔采用了独特的双曲抛物线设计，这种结构不仅美观，还能有效抵抗台风影响。塔身腰部较细，形成独特的'小蛮腰'造型，这一设计既降低了风荷载，又创造了标志性的建筑形象。" },
+                        { "topic": "什么时候参观最合适？", "answer": "建议在傍晚时分参观，可以同时欣赏白天和夜晚的景色。夜晚的广州塔会亮起绚丽的灯光，每半小时还会有灯光秀表演，非常壮观。" }
+                    ],
+                    guide: {
+                        openTime: "09:30-22:30（节假日延长至23:00）",
+                        tips: ["建议提前在官网预约购票，避免现场排队", "塔顶风大，即使夏季也建议携带薄外套", "488米观景平台是拍摄广州全景的最佳位置"]
+                    }
+                },
+                {
+                    name: "陈家祠",
+                    person: "陈伯陶",
+                    reason: "陈氏族人代表，参与祠堂修建，凝聚全省陈姓族人力量",
+                    spotImg: "https://youke1.picui.cn/s1/2025/10/08/68e6826d01aef.png",
+                    guideImg: "https://youke1.picui.cn/s1/2025/10/08/68e6820a874d5.png",
+                    initialMessage: "欢迎来到陈家祠！我是陈伯陶，很高兴为你介绍这座百年祠堂的历史。",
+                    description: "陈家祠又称陈氏书院，建于清光绪十四年（1888年），是广东现存规模最大、保存最完整、装饰最精美的中国清代宗祠建筑。陈家祠集岭南历代建筑艺术之大成，以其三雕（石雕、木雕、砖雕）、二塑（陶塑、灰塑）、一铸（铁铸）著称，被誉为'岭南建筑艺术的明珠'。",
+                    dialog: [
+                        { "topic": "陈家祠有什么建筑特色？", "answer": "陈家祠的建筑风格融合了岭南地区的传统工艺与装饰艺术，特别以精湛的三雕二塑闻名。每一处雕刻和装饰都蕴含吉祥寓意，反映了清代广东民间艺术的最高水平。" },
+                        { "topic": "为什么要修建陈家祠？", "answer": "陈家祠是当时广东省72县陈姓宗亲合资兴建的合族祠堂，主要用于祭祀祖先、供奉祖先牌位，同时也是陈氏子弟读书应试的场所，体现了宗族团结和重视教育的传统。" }
+                    ],
+                    guide: {
+                        openTime: "08:30-17:30（17:00停止入场）",
+                        tips: ["建议雇佣讲解员或租用语音导览器，更好了解建筑背后的故事", "拍摄古建筑最佳时间是上午10点前，光线柔和", "周边有许多广州传统美食店，可以品尝地道广府小吃"]
+                    }
+                },
+                {
+                    name: "南越王博物院",
+                    person: "赵佗",
+                    reason: "南越国开国君主，博物院核心展品与南越国文明直接相关",
+                    spotImg: "https://youke1.picui.cn/s1/2025/10/08/68e681ccb3911.png",
+                    guideImg: "https://youke1.picui.cn/s1/2025/10/08/68e681cabf0aa.png",
+                    initialMessage: "我是赵佗，南越国的建立者。这里保存了许多我们那个时代的珍贵文物哦。",
+                    description: "南越王博物院是在南越王墓遗址上建立的博物馆，1983年发现的南越王墓是中国汉代考古的重大发现。墓中出土了大量珍贵文物，包括金缕玉衣、铜鼎、玉器等，揭示了两千多年前南越国的历史文化面貌，是了解岭南地区早期发展的重要窗口。",
+                    dialog: [
+                        { "topic": "南越国是怎样一个国家？", "answer": "南越国是秦末至西汉时期位于中国岭南地区的一个政权，由我（赵佗）建立，存在于公元前204年至公元前111年。我们融合了中原文化与岭南本土文化，创造了独特的南越文明。" },
+                        { "topic": "博物馆里最值得看的文物是什么？", "answer": "最著名的是我生前使用的'文帝行玺'金印，这是中国目前发现的唯一一枚汉代帝王金印。还有那件精美的丝缕玉衣，由2291块玉片用丝线穿缀而成，工艺十分精湛。" }
+                    ],
+                    guide: {
+                        openTime: "09:00-17:30（16:45停止入场，周一闭馆）",
+                        tips: ["博物馆免费开放，但需提前在官网预约", "建议参观时间2-3小时，慢慢品味文物背后的历史", "馆内有专业讲解，定时开展，可关注公告牌"]
+                    }
+                }
+            ],
+            "西安市": [
+                {
+                    name: "兵马俑",
+                    person: "秦始皇",
+                    reason: "陵寝陪葬坑，体现其皇权思想与军事布局",
+                    spotImg: "https://youke1.picui.cn/s1/2025/10/08/68e679836dcf6.png",
+                    guideImg: "https://youke1.picui.cn/s1/2025/10/08/68e6794539cb6.png",
+                    initialMessage: "朕是秦始皇，这些兵马俑是朕的地下军团。想知道它们是如何建造的吗？",
+                    description: "秦始皇陵兵马俑是中国历史上规模最大的陪葬坑，被誉为'世界第八大奇迹'。兵马俑坑总面积约2.5万平方米，出土陶俑、陶马约8000件，战车百余乘，兵器数万件。这些陶俑形态各异，栩栩如生，是秦代军事制度、工艺水平和社会生活的生动写照。",
+                    dialog: [
+                        { "topic": "为什么要建造兵马俑？", "answer": "朕为自己修建这座地下军团，是为了在死后仍能拥有强大的军事力量，保卫朕的帝国。这也体现了朕对长生不老的追求和对死后世界的想象。" },
+                        { "topic": "兵马俑都是一样的吗？", "answer": "不，每个兵马俑的面部特征、发型、服饰都是独一无二的，据考证它们可能是按照真实的士兵形象塑造的。这反映了秦代工匠高超的技艺和对细节的极致追求。" }
+                    ],
+                    guide: {
+                        openTime: "08:30-18:00（3月16日-11月15日）；08:30-17:30（11月16日-3月15日）",
+                        tips: ["建议早上8点前到达，避开旅游团高峰", "一定要看1号坑，是规模最大、最壮观的坑", "景区内有官方讲解员，费用约100元/5人以内"]
+                    }
+                },
+                {
+                    name: "大雁塔",
+                    person: "玄奘",
+                    reason: "亲自督造，用于保存从印度取回的佛经与佛像",
+                    spotImg: "https://youke1.picui.cn/s1/2025/10/08/68e67ce1753b0.png",
+                    guideImg: "https://youke1.picui.cn/s1/2025/10/08/68e67d0155490.png",
+                    initialMessage: "阿弥陀佛，我是玄奘。这座大雁塔见证了我西行取经的历程。",
+                    description: "大雁塔位于西安市大慈恩寺内，始建于唐高宗永徽三年（652年），由玄奘法师主持修建，用于存放他从印度带回的佛经、佛像和舍利。塔高64.5米，共七层，是唐代建筑艺术的杰出代表，也是佛教文化传播的重要象征。",
+                    dialog: [
+                        { "topic": "您为什么要去西天取经？", "answer": "当时我发现中土佛教典籍残缺不全，译文多有谬误，为了探求佛法真谛，我决心前往佛教发源地印度求取真经。这一路历经千辛万苦，耗时十七年才得以完成。" },
+                        { "topic": "大雁塔有什么特别之处？", "answer": "大雁塔采用了唐代典型的楼阁式砖塔结构，造型简洁庄重，体现了唐代建筑的雄浑风格。塔内曾保存我带回的657部佛经，对佛教在中国的传播起到了重要作用。" }
+                    ],
+                    guide: {
+                        openTime: "08:00-18:30（3月16日-11月15日）；08:00-18:00（11月16日-3月15日）",
+                        tips: ["登塔可以俯瞰西安城南景色，建议体验", "周边的大唐不夜城夜晚灯光璀璨，值得一看", "每年春季寺内樱花盛开，是摄影好时机"]
+                    }
+                },
+                {
+                    name: "陕西历史博物馆",
+                    person: "杜虎符",
+                    reason: "战国秦兵符，是陕博'国家宝藏'级代表性文物",
+                    spotImg: "https://youke1.picui.cn/s1/2025/10/08/68e67d35d609d.png",
+                    guideImg: "https://youke1.picui.cn/s1/2025/10/08/68e67d4728e7c.png",
+                    initialMessage: "你好！我是杜虎符的化身，想了解古代军事通信的秘密吗？",
+                    description: "陕西历史博物馆是中国第一座现代化国家级博物馆，馆藏文物37万余件，时间跨度从远古人类到近代，集中展示了陕西地区作为中华文明重要发祥地的历史地位。馆内珍藏有商周青铜器、秦汉瓦当、唐代金银器等国宝级文物，系统展现了中国古代文明的发展历程。",
+                    dialog: [
+                        { "topic": "什么是虎符？它有什么作用？", "answer": "虎符是古代调兵遣将的凭证，通常分为两半，右半由皇帝保存，左半交给将领。调兵时需将两半合二为一，验证无误才能出兵。我（杜虎符）就是战国时期秦国的兵符，上面刻有'兵甲之符，右在君，左在杜'的铭文。" },
+                        { "topic": "博物馆里最珍贵的文物是什么？", "answer": "馆内珍藏众多，其中何家村窖藏出土的唐代金银器、唐三彩骆驼载乐俑、以及我们这些历代兵符都是国宝级文物。每一件文物都承载着特定历史时期的记忆和文明成果。" }
+                    ],
+                    guide: {
+                        openTime: "09:00-17:30（16:30停止入馆，周一闭馆）",
+                        tips: ["免费开放，但需提前1-3天在官网预约", "建议租用电子导览器（30元）或参加讲解服务", "参观至少需要3小时，可安排半天时间"]
+                    }
+                }
+            ],
+            "武汉市": [
+                {
+                    name: "黄鹤楼",
+                    person: "崔颢",
+                    reason: "题诗《黄鹤楼》被誉为唐诗七律第一，使楼名远扬",
+                    spotImg: "https://youke1.picui.cn/s1/2025/10/08/68e67d9182e7d.png",
+                    guideImg: "https://youke1.picui.cn/s1/2025/10/08/68e67dae141a2.png",
+                    initialMessage: "我是崔颢，很高兴为你介绍黄鹤楼的故事和我的那首诗。",
+                    description: "黄鹤楼始建于三国时期，屡毁屡建，现存建筑为1985年重建。它位于武昌蛇山之巅，濒临长江，与岳阳楼、滕王阁并称为'江南三大名楼'。黄鹤楼因其独特的建筑风格和众多文人墨客的题咏而闻名于世，尤其是我的《黄鹤楼》一诗，更使它名扬天下。",
+                    dialog: [
+                        { "topic": "您的《黄鹤楼》诗有什么特别之处？", "answer": "我的《黄鹤楼》诗以'昔人已乘黄鹤去，此地空余黄鹤楼'开篇，将神话传说与眼前景物融为一体，意境开阔，情感深沉，被后世誉为'唐人七律第一'。据说连李白见了此诗都感叹'眼前有景道不得，崔颢题诗在上头'。" },
+                        { "topic": "黄鹤楼经历过多少次重建？", "answer": "自三国时期始建以来，黄鹤楼因战乱、火灾等原因多次被毁，又多次重建，有据可查的就有20多次。现在我们看到的黄鹤楼是1985年按照清代同治年间的样式重建的，既保留了传统风格，又采用了现代建筑材料。" }
+                    ],
+                    guide: {
+                        openTime: "08:30-17:00（4月1日-10月31日）；08:30-17:30（11月1日-3月31日）",
+                        tips: ["登楼最佳时间是清晨或傍晚，可避开人流", "建议结合长江大桥一同游览，景色更佳", "楼内有历代黄鹤楼模型展览，值得一看"]
+                    }
+                },
+                {
+                    name: "东湖",
+                    person: "屈原",
+                    reason: "曾在此泽畔行吟，《九章》等作品可能创作于此",
+                    spotImg: "https://youke1.picui.cn/s1/2025/10/08/68e67e1c184b0.png",
+                    guideImg: "https://youke1.picui.cn/s1/2025/10/08/68e67ea0c63de.png",
+                    initialMessage: "我是屈原，这里的湖光山色曾激发我许多创作灵感。",
+                    description: "东湖是中国最大的城中湖，面积是杭州西湖的六倍。它位于武汉市武昌区，水域辽阔，湖岸曲折，四周山峦环绕，风景秀丽。东湖历史悠久，早在战国时期就有记载，我（屈原）曾在此行吟作诗。如今东湖已成为集自然景观、人文历史、休闲娱乐于一体的风景名胜区。",
+                    dialog: [
+                        { "topic": "您当年在东湖附近有什么活动？", "answer": "我曾在这一带行走吟唱，目睹民生疾苦，抒发忧国忧民之情。《九章》中的一些篇章可能就是在这一带创作的。这里的山水见证了我的思考与感慨，也融入了我的诗歌之中。" },
+                        { "topic": "东湖有什么特色景点？", "answer": "东湖景区很大，主要有听涛、磨山、落雁、吹笛等景区。听涛景区临湖而建，可欣赏湖光山色；磨山景区有楚天台等人文景观；落雁景区则以自然生态见长，各有特色，值得细细品味。" }
+                    ],
+                    guide: {
+                        openTime: "全天开放（景区内各景点开放时间不同）",
+                        tips: ["景区免费开放，部分景点收费", "建议租自行车环湖游览，更自由便捷", "春季赏樱、夏季赏荷、秋季赏枫是最佳时节"]
+                    }
+                },
+                {
+                    name: "湖北省博物馆",
+                    person: "曾侯乙",
+                    reason: "出土的编钟是镇馆之宝，改写世界音乐史",
+                    spotImg: "https://youke1.picui.cn/s1/2025/10/08/68e67ebf555f4.png",
+                    guideImg: "https://youke1.picui.cn/s1/2025/10/08/68e67f30ab309.png",
+                    initialMessage: "我是曾侯乙，欢迎来参观以我的名字命名的博物馆和那套编钟。",
+                    description: "湖北省博物馆是中国重要的省级博物馆，馆藏文物24万余件，其中国宝级文物众多。最著名的当属1978年出土于曾侯乙墓的曾侯乙编钟，这套由65件青铜编钟组成的乐器，音域宽广，音色优美，改写了世界音乐史。此外，越王勾践剑、元青花四爱图梅瓶等也都是馆内珍品。",
+                    dialog: [
+                        { "topic": "编钟是如何制作的？有什么特别之处？", "answer": "我的这套编钟采用了失蜡法铸造，工艺精湛，每一件钟都能发出两个不同的音。整套编钟音域跨越五个半八度，比现代钢琴只少一个八度，能演奏各种复杂乐曲，展现了我们先秦时期高度发达的音乐文化。" },
+                        { "topic": "您的墓葬中为什么会有这么多珍贵文物？", "answer": "我是战国时期曾国的君主，这些文物既是我的生前所用之物，也是当时曾国工艺水平和文化成就的体现。尤其是这套编钟，不仅是乐器，更是权力和地位的象征，反映了我们对礼乐制度的重视。" }
+                    ],
+                    guide: {
+                        openTime: "09:00-17:00（16:00停止入馆，周一闭馆）",
+                        tips: ["免费开放，需提前在官网预约", "编钟演奏表演非常精彩，需单独购票（30元）", "建议参观时间3-4小时，可重点观看编钟展厅"]
+                    }
+                }
+            ],
+            "长沙市": [
+                {
+                    name: "岳麓书院",
+                    person: "朱熹",
+                    reason: "在此讲学，与张栻论道，推动湖湘学派繁荣",
+                    spotImg: "https://youke1.picui.cn/s1/2025/10/08/68e67fac1c939.png",
+                    guideImg: "https://youke1.picui.cn/s1/2025/10/08/68e67fab2a030.png",
+                    initialMessage: "我是朱熹，岳麓书院曾是我讲学论道的重要场所。",
+                    description: "岳麓书院始建于北宋开宝九年（976年），是中国古代四大书院之一，也是保存最完整的一座古代书院。它位于岳麓山东麓，历经宋、元、明、清各代，弦歌不绝，现为湖南大学的组成部分。我（朱熹）曾在此与张栻进行著名的'朱张会讲'，推动了湖湘学派的发展。",
+                    dialog: [
+                        { "topic": "什么是'朱张会讲'？", "answer": "南宋乾道三年（1167年），我从福建来到岳麓书院，与当时主持书院的张栻就理学问题进行了长达两个多月的学术辩论，这就是著名的'朱张会讲'。我们的辩论吸引了数千人前来听讲，盛况空前，极大地促进了理学的发展和书院教育的繁荣。" },
+                        { "topic": "岳麓书院有什么教育理念？", "answer": "岳麓书院强调'经世致用'，主张学问要与社会实践相结合，培养了大批经世济民的人才。这种教育理念对后世影响深远，也是湖湘文化的重要特征。书院的'忠孝廉节'校训，体现了对品德修养的重视。" }
+                    ],
+                    guide: {
+                        openTime: "07:30-18:00（5月1日-10月31日）；08:00-17:30（11月1日-4月30日）",
+                        tips: ["包含在岳麓山景区内，可一并游览", "建议请讲解员，了解书院的历史和文化内涵", "秋季岳麓山红叶与书院古建筑相映成趣，美不胜收"]
+                    }
+                },
+                {
+                    name: "湖南省博物院",
+                    person: "辛追夫人",
+                    reason: "马王堆汉墓出土的湿尸，是世界防腐史上的奇迹",
+                    spotImg: "https://youke1.picui.cn/s1/2025/10/08/68e67f512ea8c.png",
+                    guideImg: "https://youke1.picui.cn/s1/2025/10/08/68e67f666737b.png",
+                    initialMessage: "你好，我是辛追夫人，欢迎来了解我们汉代贵族的生活。",
+                    description: "湖南省博物院是湖南省最大的历史艺术类博物馆，馆藏文物18万余件。最著名的当属1972年至1974年出土于长沙马王堆汉墓的文物，包括我的遗体、丝织品、漆器、帛书等。其中，我的遗体历经两千多年保存完好，是世界防腐史上的奇迹；而那件重量仅49克的素纱襌衣，更是展现了汉代高超的纺织工艺。",
+                    dialog: [
+                        { "topic": "您的遗体为什么能保存得如此完好？", "answer": "这得益于多重因素：一是深埋密封，隔绝了空气和水分；二是棺液具有抑菌防腐作用；三是墓葬结构严密，形成了恒温恒湿的环境。这体现了我们汉代在防腐技术和丧葬文化方面的高度成就。", "answer": "这得益于多重因素：一是深埋密封，隔绝了空气和水分；二是棺液具有抑菌防腐作用；三是墓葬结构严密，形成了恒温恒湿的环境。这体现了我们汉代在防腐技术和丧葬文化方面的高度成就。" },
+                        { "topic": "马王堆出土了哪些重要文物？", "answer": "除了我的遗体，还有大量珍贵文物，如那件薄如蝉翼的素纱襌衣、内容丰富的帛书（包括《老子》、《黄帝内经》等）、色彩鲜艳的漆器、乐器、兵器等，这些文物为研究汉代历史文化提供了珍贵的实物资料。" }
+                    ],
+                    guide: {
+                        openTime: "09:00-17:00（16:00停止入馆，周一闭馆）",
+                        tips: ["免费开放，需提前3天在官网预约，非常火爆", "马王堆汉墓展区是核心，建议重点参观", "有定时讲解，可关注讲解时间安排"]
+                    }
+                },
+                {
+                    name: "杜甫江阁",
+                    person: "杜甫",
+                    reason: "晚年漂泊湖湘时在此留下《江南逢李龟年》等诗作",
+                    spotImg: "https://youke1.picui.cn/s1/2025/10/08/68e68048e37d2.png",
+                    guideImg: "https://youke1.picui.cn/s1/2025/10/08/68e680487e9e0.png",
+                    initialMessage: "我是杜甫，晚年曾在此停留，留下了不少诗篇。",
+                    description: "杜甫江阁位于长沙市天心区湘江边，为纪念我（杜甫）晚年在长沙的生活而建。公元768年，我漂泊至长沙，在湘江边居住了两年多，写下了《江南逢李龟年》等传世佳作。江阁仿唐风格，登阁可眺望湘江美景，感受'阁夜'诗中描绘的意境。",
+                    dialog: [
+                        { "topic": "您在长沙写了哪些诗？", "answer": "我在长沙期间写下了《清明二首》、《发潭州》、《夜泊湘川》等诗作，其中最著名的当属《江南逢李龟年》：'岐王宅里寻常见，崔九堂前几度闻。正是江南好风景，落花时节又逢君。'这首诗短短四句，蕴含了国破家亡、人生飘零的无限感慨。", "answer": "我在长沙期间写下了《清明二首》、《发潭州》、《夜泊湘川》等诗作，其中最著名的当属《江南逢李龟年》：'岐王宅里寻常见，崔九堂前几度闻。正是江南好风景，落花时节又逢君。'这首诗短短四句，蕴含了国破家亡、人生飘零的无限感慨。" },
+                        { "topic": "为什么要建杜甫江阁纪念您？", "answer": "我虽然不是长沙人，但晚年在长沙生活了较长时间，留下了许多诗篇，与这座城市结下了深厚缘分。后人建此江阁，既是对我诗歌成就的肯定，也是对那种忧国忧民情怀的传承，希望后人能从我的诗作中汲取精神力量。" }
+                    ],
+                    guide: {
+                        openTime: "09:00-22:00",
+                        tips: ["夜晚江阁灯光亮起，与湘江夜景交相辉映，非常美丽", "江阁附近是长沙历史文化街区，可一并游览", "阁内有杜甫诗作展览，适合文学爱好者"]
+                    }
+                }
+            ],
+            "成都市": [
+                {
+                    name: "锦里",
+                    person: "诸葛亮",
+                    reason: "毗邻武侯祠，体现三国文化与蜀汉历史",
+                    spotImg: "https://youke1.picui.cn/s1/2025/10/08/68e680496e750.png",
+                    guideImg: "https://youke1.picui.cn/s1/2025/10/08/68e68048adb0c.png",
+                    initialMessage: "我是诸葛亮，锦里这片区域保留了许多三国时期的文化痕迹。",
+                    description: "锦里是成都市著名的商业步行街，位于武侯祠大街中段，占地30000余平方米，建筑面积14000余平方米，街道全长550米。它以三国文化、川西民风民俗为特色，再现了三国时期成都的市井风貌。这里毗邻武侯祠，与我（诸葛亮）有着深厚的历史渊源。",
+                    dialog: [
+                        { "topic": "锦里与三国文化有什么联系？", "answer": "锦里位于武侯祠旁，而武侯祠是纪念我和蜀汉君臣的地方。这里的建筑风格、店铺布局都力求再现三国时期的市井风貌，许多店铺售卖的商品也与三国文化相关，使人们能感受到当年蜀汉都城的生活气息。", "answer": "锦里位于武侯祠旁，而武侯祠是纪念我和蜀汉君臣的地方。这里的建筑风格、店铺布局都力求再现三国时期的市井风貌，许多店铺售卖的商品也与三国文化相关，使人们能感受到当年蜀汉都城的生活气息。" },
+                        { "topic": "成都在三国时期是什么地位？", "answer": "成都在三国时期是蜀汉的都城，称为成都郡，是政治、经济、文化中心。我在此辅佐刘备建立蜀汉政权，多次从这里出师北伐。成都的稳定繁荣，为蜀汉政权提供了重要支撑。" }
+                    ],
+                    guide: {
+                        openTime: "09:00-22:00",
+                        tips: ["傍晚时分前往最佳，可以同时体验白天和夜晚的风情", "特色小吃有三大炮、糖油果子、蛋烘糕等，值得品尝", "夜晚灯笼亮起时拍照非常漂亮"]
+                    }
+                },
+                {
+                    name: "大熊猫基地",
+                    person: "胡锦矗",
+                    reason: "中国大熊猫研究第一人，奠定保护基础",
+                    spotImg: "https://youke1.picui.cn/s1/2025/10/08/68e6811a60fab.png",
+                    guideImg: "https://youke1.picui.cn/s1/2025/10/08/68e68003736d2.png",
+                    initialMessage: "我是胡锦矗，很高兴带你了解大熊猫的保护研究工作。",
+                    description: "成都大熊猫繁育研究基地是中国政府实施大熊猫等濒危野生动物迁地保护工程的主要研究基地之一，位于成都市北郊斧头山，占地1000亩。基地始建于1987年，目前是国内开展大熊猫等濒危野生动物移地保护的主要基地之一，拥有众多大熊猫，是观赏和研究大熊猫的重要场所。我（胡锦矗）作为中国大熊猫研究的奠基人，为大熊猫的保护做出了重要贡献。",
+                    dialog: [
+                        { "topic": "您对大熊猫保护有什么贡献？", "answer": "我从上世纪70年代开始从事大熊猫研究，是中国第一个大熊猫野外生态观察站的建立者，首次系统研究了大熊猫的生态习性、食性、繁殖等，为大熊猫保护提供了科学依据。我们的研究成果为制定大熊猫保护策略奠定了基础，也提高了公众对大熊猫保护的认识。", "answer": "我从上世纪70年代开始从事大熊猫研究，是中国第一个大熊猫野外生态观察站的建立者，首次系统研究了大熊猫的生态习性、食性、繁殖等，为大熊猫保护提供了科学依据。我们的研究成果为制定大熊猫保护策略奠定了基础，也提高了公众对大熊猫保护的认识。" },
+                        { "topic": "基地在大熊猫繁育方面有什么成就？", "answer": "基地在大熊猫人工繁育方面取得了重大突破，成功攻克了大熊猫繁殖难、育幼难等问题，使圈养大熊猫数量不断增加。目前基地已形成了一个健康的大熊猫种群，为大熊猫野化放归和物种延续做出了重要贡献。" }
+                    ],
+                    guide: {
+                        openTime: "07:30-18:00（4月-10月）；08:00-17:30（11月-3月）",
+                        tips: ["一定要早去！大熊猫上午更活跃，下午多在睡觉", "建议乘坐景区观光车，节省体力", "熊猫幼崽别墅最受欢迎，可看到可爱的熊猫宝宝"]
+                    }
+                },
+                {
+                    name: "都江堰",
+                    person: "李冰",
+                    reason: "主持修建的水利工程，两千多年仍在发挥作用",
+                    spotImg: "https://youke1.picui.cn/s1/2025/10/08/68e68153edad2.png",
+                    guideImg: "https://youke1.picui.cn/s1/2025/10/08/68e68153da365.png",
+                    initialMessage: "我是李冰，都江堰这项工程凝聚了我们古人的智慧。",
+                    description: "都江堰是我（李冰）父子在秦昭王末年（约公元前256年）主持修建的大型水利工程，位于成都市都江堰市城西，坐落在岷江中游平原地带的起点。它由鱼嘴、飞沙堰、宝瓶口等部分组成，科学地解决了江水自动分流、自动排沙、控制进水流量等问题，使成都平原成为'水旱从人、不知饥馑'的'天府之国'。这项工程历经两千多年仍在发挥作用，是世界水利史上的奇迹。",
+                    dialog: [
+                        { "topic": "都江堰的设计有什么科学之处？", "answer": "都江堰的设计充分利用了地形和水力学原理：鱼嘴将岷江分为内江和外江，实现了自动分流；飞沙堰利用弯道环流原理，能自动排沙；宝瓶口则控制进水流量，三者相互配合，缺一不可。这种设计无需人工操作，就能实现防洪、灌溉、航运等多种功能，体现了'道法自然'的智慧。", "answer": "都江堰的设计充分利用了地形和水力学原理：鱼嘴将岷江分为内江和外江，实现了自动分流；飞沙堰利用弯道环流原理，能自动排沙；宝瓶口则控制进水流量，三者相互配合，缺一不可。这种设计无需人工操作，就能实现防洪、灌溉、航运等多种功能，体现了'道法自然'的智慧。" },
+                        { "topic": "都江堰对成都平原产生了什么影响？", "answer": "在都江堰修建之前，成都平原经常遭受岷江洪水泛滥之苦，又因缺水而影响农业发展。都江堰建成后，彻底改变了这种状况，使成都平原成为沃野千里的'天府之国'，对四川地区的经济发展、社会稳定和文化繁荣产生了深远影响，这种影响一直延续到今天。" }
+                    ],
+                    guide: {
+                        openTime: "08:00-18:00（3月1日-10月31日）；08:00-17:30（11月1日-2月28日）",
+                        tips: ["建议请讲解员或租用语音导览，了解工程原理", "春季和秋季气候适宜，是游览最佳时节", "可与青城山一同游览，两地相距不远"]
+                    }
+                }
+            ],
+            "北京市": [
+                {
+                    name: "故宫",
+                    person: "朱棣",
+                    reason: "明成祖朱棣下令修建，是明清两代皇家宫殿",
+                    spotImg: "https://s21.ax1x.com/2025/10/08/pVHSCpd.png",
+                    guideImg: "https://s21.ax1x.com/2025/10/08/pVHp0Pg.png",
+                    initialMessage: "我是朱棣，这座紫禁城是我下令建造的皇家宫殿。",
+                    description: "故宫又称紫禁城，是我（朱棣）于明朝永乐四年（1406年）下令始建，永乐十八年（1420年）建成。它位于北京中轴线的中心，是中国明清两代的皇家宫殿，占地面积约72万平方米，建筑面积约15万平方米，有大小宫殿七十多座，房屋九千余间。故宫是世界上现存规模最大、保存最为完整的木质结构古建筑之一，被誉为'世界五大宫之首'。",
+                    dialog: [
+                        { "topic": "您为什么要修建故宫？", "answer": "我迁都北京后，需要一座宏伟的宫殿作为新的政治中心，以彰显皇权的威严和大明王朝的强盛。故宫的设计严格遵循'天人合一'的理念和封建礼制，体现了皇权至上的思想，同时也是我巩固统治、展示国力的象征。", "answer": "我迁都北京后，需要一座宏伟的宫殿作为新的政治中心，以彰显皇权的威严和大明王朝的强盛。故宫的设计严格遵循'天人合一'的理念和封建礼制，体现了皇权至上的思想，同时也是我巩固统治、展示国力的象征。" },
+                        { "topic": "故宫的建筑有什么特色？", "answer": "故宫的建筑布局严谨，中轴对称，左右对称，体现了封建社会的等级制度和皇权中心思想。建筑装饰精美，大量使用龙的图案，象征皇权至高无上。同时，建筑结构采用榫卯技术，不用一钉一铆，却坚固耐用，展现了中国古代建筑工艺的高超水平。" }
+                    ],
+                    guide: {
+                        openTime: "08:30-17:00（4月1日-10月31日）；08:30-16:30（11月1日-3月31日），周一闭馆（法定节假日除外）",
+                        tips: ["一定要提前在官网预约，现场很难买到票", "建议从南门进北门出，沿中轴线游览", "参观时间至少需要4-5小时，可安排一整天"]
+                    }
+                },
+                {
+                    name: "长城",
+                    person: "蒙恬",
+                    reason: "秦将蒙恬主持修缮连接，成为万里长城雏形",
+                    spotImg: "https://youke1.picui.cn/s1/2025/10/08/68e683168fefe.png",
+                    guideImg: "https://youke1.picui.cn/s1/2025/10/08/68e682ae9a304.png",
+                    initialMessage: "我是蒙恬，当年我主持了长城的修缮和连接工程。",
+                    description: "长城是中国古代重要的军事防御工程，始建于西周时期，秦灭六国后，我（蒙恬）奉秦始皇之命，将战国时期各国修筑的长城连接起来，并进行了大规模修缮，形成了西起临洮、东至辽东的万里长城。此后，历代王朝都对长城进行了修缮和扩建，现在我们看到的长城主要是明代修建的。长城是世界上修建时间最长、工程量最大的古代防御工程，被誉为'世界中古七大奇迹之一'。",
+                    dialog: [
+                        { "topic": "您在长城修建中主要做了什么工作？", "answer": "我奉命将秦、赵、燕三国北部的长城连接起来，形成了一条完整的军事防御体系。我们不仅修缮了原有长城，还新修了部分段落，设置了烽燧、关隘等设施，建立了一套完整的预警和防御系统。这项工程动用了大量人力物力，历时多年才完成。", "answer": "我奉命将秦、赵、燕三国北部的长城连接起来，形成了一条完整的军事防御体系。我们不仅修缮了原有长城，还新修了部分段落，设置了烽燧、关隘等设施，建立了一套完整的预警和防御系统。这项工程动用了大量人力物力，历时多年才完成。" },
+                        { "topic": "长城在古代起到了什么作用？", "answer": "长城主要起到了军事防御作用，抵御了北方游牧民族的入侵，保护了中原地区的农业生产和社会稳定。同时，长城也是各民族经济文化交流的纽带，促进了边疆地区的发展。长城的修建体现了中国古代人民的智慧和力量，也成为了中华民族的象征。" }
+                    ],
+                    guide: {
+                        openTime: "不同段落开放时间不同，一般为07:30-17:30",
+                        tips: ["八达岭长城最著名但人最多，慕田峪长城景色美且人较少", "建议穿舒适的运动鞋，准备充足的水", "春秋两季气候适宜，是游览最佳时节"]
+                    }
+                },
+                {
+                    name: "颐和园",
+                    person: "慈禧太后",
+                    reason: "以其名义重建，是清代皇家园林代表",
+                    spotImg: "https://s21.ax1x.com/2025/10/08/pVHpHqx.png",
+                    guideImg: "https://s21.ax1x.com/2025/10/08/pVHpLdK.png",
+                    initialMessage: "欢迎来到颐和园，这座园林曾是我休憩理政的地方。",
+                    description: "颐和园前身为清漪园，始建于清乾隆十五年（1750年），咸丰十年（1860年）被英法联军焚毁。光绪十四年（1888年），我（慈禧太后）以筹措海军经费的名义动用银两重建，改称颐和园，作为消夏游乐之地。它位于北京西北郊，占地约290公顷，由昆明湖、万寿山组成，集中国江南园林和北方园林的特色于一体，是中国现存规模最大、保存最完整的皇家园林。",
+                    dialog: [
+                        { "topic": "颐和园的建造有什么特点？", "answer": "颐和园将自然山水与人工建筑巧妙结合，以昆明湖、万寿山为基址，借鉴了江南园林的设计手法，同时融入了皇家园林的恢宏气势。园内的佛香阁、长廊、石舫等建筑各具特色，既有山水之美，又有建筑之精，体现了中国古典园林'虽由人作，宛自天开'的艺术境界。", "answer": "颐和园将自然山水与人工建筑巧妙结合，以昆明湖、万寿山为基址，借鉴了江南园林的设计手法，同时融入了皇家园林的恢宏气势。园内的佛香阁、长廊、石舫等建筑各具特色，既有山水之美，又有建筑之精，体现了中国古典园林'虽由人作，宛自天开'的艺术境界。" },
+                        { "topic": "您经常在颐和园做什么？", "answer": "颐和园是我晚年重要的活动场所，我每年都会在这里居住较长时间，不仅在此休憩娱乐，也处理朝政，接见外国使节。园内的仁寿殿是我处理政务的地方，乐寿堂是我的寝宫。这座园林见证了晚清的许多重要历史事件。" }
+                    ],
+                    guide: {
+                        openTime: "06:30-18:00（4月1日-10月31日）；07:00-17:00（11月1日-3月31日）",
+                        tips: ["建议从东宫门进入，沿中轴线游览", "可乘船游览昆明湖，从不同角度欣赏园景", "长廊是世界上最长的走廊，绘有大量历史故事画，值得细看"]
+                    }
+                }
+            ],
+            "南京市": [
+                {
+                    name: "明孝陵",
+                    person: "朱元璋",
+                    reason: "明太祖朱元璋与马皇后的陵墓",
+                    spotImg: "https://s21.ax1x.com/2025/10/08/pVHpOIO.png",
+                    guideImg: "https://s21.ax1x.com/2025/10/08/pVHpjiD.png",
+                    initialMessage: "我是朱元璋，这是我和马皇后的陵寝，欢迎参观。",
+                    description: "明孝陵是我（朱元璋）和马皇后的合葬陵墓，位于南京市玄武区紫金山南麓独龙阜玩珠峰下，始建于明洪武十四年（1381年），至明永乐三年（1405年）建成，历时25年。它是中国明陵之首，代表了明初建筑和石刻艺术的最高成就，直接影响了明清两代500多年帝王陵寝的形制。明孝陵占地面积达170余万平方米，规模宏大，建筑雄伟。",
+                    dialog: [
+                        { "topic": "明孝陵的设计有什么独特之处？", "answer": "明孝陵打破了历代帝王陵墓依山为陵的传统，而是采用了'前方后圆'的新式布局，开创了明清帝陵的新形制。陵寝建筑沿中轴线展开，层次分明，象征着皇权的至高无上。同时，陵区内大量的石刻作品，造型生动，工艺精湛，具有很高的艺术价值。", "answer": "明孝陵打破了历代帝王陵墓依山为陵的传统，而是采用了'前方后圆'的新式布局，开创了明清帝陵的新形制。陵寝建筑沿中轴线展开，层次分明，象征着皇权的至高无上。同时，陵区内大量的石刻作品，造型生动，工艺精湛，具有很高的艺术价值。" },
+                        { "topic": "为什么选择在这里修建陵墓？", "answer": "紫金山地势雄伟，风水极佳，被认为是'龙盘虎踞'之地。这里山水相依，气势恢宏，适合作为帝王陵寝。而且这里距离南京城不远，便于后代子孙祭祀。我相信，这样的选址能保佑大明江山永固。" }
+                    ],
+                    guide: {
+                        openTime: "06:30-18:30（3月1日-10月31日）；07:00-17:30（11月1日-2月28日）",
+                        tips: ["与中山陵、美龄宫等景点相距不远，可一并游览", "神道石像路秋季落叶满地，景色绝美", "建议早上或傍晚游览，避开人流高峰"]
+                    }
+                },
+                {
+                    name: "夫子庙",
+                    person: "孔子",
+                    reason: "祭祀孔子的场所，体现儒家文化传承",
+                    spotImg: "https://s21.ax1x.com/2025/10/08/pVHpxRH.png",
+                    guideImg: "https://i.imgs.ovh/2025/10/08/7DBRMO.png",
+                    initialMessage: "我是孔子，夫子庙是纪念和祭祀我的场所之一。",
+                    description: "南京夫子庙位于南京市秦淮区秦淮河北岸贡院街、江南贡院以西，始建于东晋咸康三年（337年），是供奉和祭祀我（孔子）的地方，也是中国四大文庙之一。夫子庙以庙前的秦淮河为泮池，南岸的石砖墙为照壁，全长110米，是全国照壁之最。夫子庙既是祭祀场所，也是古代科举考场江南贡院的所在地，体现了中国古代对教育和文化的重视。",
+                    dialog: [
+                        { "topic": "夫子庙在古代有什么作用？", "answer": "夫子庙主要有两个作用：一是祭祀我（孔子），弘扬儒家思想和文化；二是作为地方教育中心，培养人才。旁边的江南贡院是明清时期重要的科举考场，无数读书人在此追求功名，体现了'学而优则仕'的传统观念。夫子庙因此成为文化传承和人才培养的重要场所。", "answer": "夫子庙主要有两个作用：一是祭祀我（孔子），弘扬儒家思想和文化；二是作为地方教育中心，培养人才。旁边的江南贡院是明清时期重要的科举考场，无数读书人在此追求功名，体现了'学而优则仕'的传统观念。夫子庙因此成为文化传承和人才培养的重要场所。" },
+                        { "topic": "儒家思想对中国文化有什么影响？", "answer": "我的思想核心是'仁'，主张'仁者爱人'、'克己复礼'等，强调道德修养和社会秩序。这些思想经过后世发展，成为中国传统文化的主流，对中国的政治制度、伦理道德、教育体系、社会习俗等产生了深远影响，塑造了中华民族的精神品格。" }
+                    ],
+                    guide: {
+                        openTime: "全天开放（景区内各景点开放时间不同）",
+                        tips: ["夜晚灯光璀璨，秦淮河夜景非常美丽", "特色小吃有鸭血粉丝汤、小笼包、桂花糖芋苗等", "春节期间有灯会，非常热闹，需提前规划"]
+                    }
+                },
+                {
+                    name: "中山陵",
+                    person: "孙中山",
+                    reason: "中国民主革命先行者孙中山的陵寝",
+                    spotImg: "https://i.imgs.ovh/2025/10/08/7DBDwL.png",
+                    guideImg: "https://i.imgs.ovh/2025/10/08/7DBQMM.png",
+                    initialMessage: "你好，我是孙中山，这里是我的长眠之地，欢迎了解我的革命历程。",
+                    description: "中山陵是我（孙中山）的陵寝，位于南京市玄武区紫金山南麓钟山风景区内，始建于1926年，1929年建成。陵墓由建筑师吕彦直设计，占地面积8万多平方米，平面呈警钟形，象征着'警钟长鸣'，唤醒民众。中山陵建筑融合了中国传统建筑和西方近代建筑的特点，气势恢宏，庄严肃穆，是中国近代建筑的杰出代表。",
+                    dialog: [
+                        { "topic": "您的革命理想是什么？", "answer": "我的革命理想是'驱除鞑虏，恢复中华，创立民国，平均地权'，后来概括为'民族、民权、民生'三民主义。我希望推翻封建帝制，建立一个民主共和的国家，让人民享有平等、自由和幸福的生活，实现中华民族的伟大复兴。", "answer": "我的革命理想是'驱除鞑虏，恢复中华，创立民国，平均地权'，后来概括为'民族、民权、民生'三民主义。我希望推翻封建帝制，建立一个民主共和的国家，让人民享有平等、自由和幸福的生活，实现中华民族的伟大复兴。" },
+                        { "topic": "中山陵的设计有什么象征意义？", "answer": "中山陵的整体平面呈警钟形，象征着唤醒民众，为实现民族独立和人民解放而奋斗。陵墓的392级台阶象征着当时中国的3.92亿同胞。建筑风格中西合璧，体现了我所倡导的融合中西、与时俱进的思想，也象征着中国从传统走向现代的历史进程。" }
+                    ],
+                    guide: {
+                        openTime: "08:30-17:00（3月1日-10月31日）；08:30-16:30（11月1日-2月28日）",
+                        tips: ["免费开放，但需提前在官网预约", "392级台阶需要一定体力，可慢慢攀登", "登顶后可俯瞰南京城景，视野开阔"]
+                    }
+                }
+            ]
+        };
+        // 当前激活的导游信息
+        let activeGuide = null;
+        // 当前选中的城市
+        let currentCity = null;
+        // 当前弹窗对象
+        let currentPopup = null;
+
+        // DOM元素引用
+        const panelTitle = document.getElementById('panel-title');
+        const showGuideBtn = document.getElementById('show-guide');
+        const topicButtons = document.getElementById('topic-buttons');
+        const dialogContent = document.getElementById('right-dialog-content');
+        const userInput = document.getElementById('right-user-input');
+        const sendBtn = document.getElementById('right-send-btn');
+        const guideModal = document.getElementById('guide-modal');
+        const modalTitle = document.getElementById('modal-title');
+        const modalBody = document.getElementById('modal-body');
+        const closeModal = document.getElementById('close-modal');
+
+        // 给城市添加标记和点击事件
+        cityData.forEach(city => {
+            const marker = L.marker([city.lat, city.lng]).addTo(map);
+            marker.bindTooltip(city.name);
+            marker.on('click', function() {
+                currentCity = city;
+                showCitySpots(city.name, city.lat, city.lng);
+            });
+        });
+
+        // 生成城市景点列表弹窗
+        function showCitySpots(cityName, lat, lng) {
+            const spots = spotPersonData[cityName];
+            let spotsHtml = `<div class="popup-content"><strong>${cityName} 景点</strong><br>`;
+            spots.forEach(spot => {
+                spotsHtml += `<div class="spot-item" onclick="showGuide('${cityName}', '${spot.name}')">
+                               → ${spot.name}
+                             </div>`;
+            });
+            spotsHtml += `</div>`;
+
+            // 关闭现有弹窗并显示新弹窗
+            if (currentPopup) map.removeLayer(currentPopup);
+            currentPopup = L.popup()
+                .setLatLng([lat, lng])
+                .setContent(spotsHtml)
+                .openOn(map);
+        }
+
+        // 显示互动导游
+        function showGuide(cityName, spotName) {
+            // 查找对应的景点数据
+            const spot = spotPersonData[cityName].find(item => item.name === spotName);
+            if (!spot) return;
+
+            // 保存当前激活的导游信息
+            activeGuide = spot;
+
+            // 更新面板标题
+            panelTitle.textContent = `${cityName} · ${spotName}（${spot.person}）`;
+
+            // 更新地图弹窗显示景点详情
+            updateMapSpotPopup(cityName, spot);
+
+            // 加载预设话题
+            loadPresetTopics(spot.dialog || []);
+
+            // 初始化对话区
+            initDialogContent(spot);
+
+            // 启用交互元素
+            userInput.disabled = false;
+            sendBtn.disabled = false;
+            showGuideBtn.disabled = false;
+            userInput.placeholder = "输入你想了解的内容...";
+        }
+
+        // 更新地图上的景点详情弹窗
+        function updateMapSpotPopup(cityName, spot) {
+            // 关闭现有弹窗
+            if (currentPopup) map.removeLayer(currentPopup);
+
+            // 找到城市坐标
+            const city = cityData.find(c => c.name === cityName);
+            if (!city) return;
+
+            // 构建弹窗内容
+            const popupHtml = `
+                <div class="popup-content">
+                    <strong>${spot.name}</strong><br>
+
+                    <!-- 景点图片 -->
+                    <img src="${spot.spotImg}"
+                         alt="${spot.name}"
+                         class="spot-image"
+                         onload="this.classList.add('loaded')">
+
+                    <!-- 景点描述 -->
+                    <div class="spot-description">${spot.description}</div>
+
+                    <div class="guide-container">
+                        <div class="guide-avatar" onclick="openGuideDialog()">
+                            <img src="${spot.guideImg}" alt="${spot.person}">
+                        </div>
+                        <div class="guide-info">
+                            <div class="guide-name">${spot.person}</div>
+                            <div class="guide-reason">${spot.reason}</div>
+                            <div class="interaction-indicator" onclick="openGuideDialog()">
+                                <i class="fa fa-comments"></i> 点击与${spot.person}互动
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 返回城市列表按钮 -->
+                    <div class="back-to-city" onclick="showCitySpots('${cityName}', ${city.lat}, ${city.lng})">
+                        <i class="fa fa-arrow-left"></i> 返回${cityName}景点列表
+                    </div>
+                </div>
+            `;
+
+            // 显示弹窗
+            currentPopup = L.popup()
+                .setLatLng([city.lat, city.lng])
+                .setContent(popupHtml)
+                .openOn(map);
+        }
+
+        // 初始化对话内容
+        function initDialogContent(spot) {
+            dialogContent.innerHTML = '';
+            addMessage('guide', spot.initialMessage);
+
+            // 添加景点简介（截取前100字）
+            if (spot.description) {
+                const shortDesc = spot.description.length > 100
+                    ? spot.description.substring(0, 100) + '...'
+                    : spot.description;
+                addMessage('guide', `景点简介：${shortDesc}`);
+            }
+
+            addMessage('guide', '可以选择下方的预设话题，或直接输入你的问题~');
+        }
+
+        // 加载预设话题
+        function loadPresetTopics(dialogList) {
+            topicButtons.innerHTML = '';
+
+            if (dialogList.length === 0) {
+                topicButtons.innerHTML = '<button class="topic-btn" disabled>无预设话题</button>';
+                return;
+            }
+
+            dialogList.forEach(dialog => {
+                const btn = document.createElement('button');
+                btn.className = 'topic-btn';
+                btn.textContent = dialog.topic;
+                btn.onclick = () => {
+                    addMessage('user', dialog.topic);
+                    addMessage('guide', dialog.answer || '抱歉，没有相关回答');
+                };
+                topicButtons.appendChild(btn);
+            });
+        }
+
+        // 添加消息到对话区
+        function addMessage(type, content) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+
+            if (type === 'loading') {
+                messageDiv.innerHTML = `
+                    <div class="bubble">
+                        <div class="loading-dot"></div>
+                        <div class="loading-dot"></div>
+                        <div class="loading-dot"></div>
+                    </div>
+                `;
+            } else {
+                messageDiv.innerHTML = `<div class="bubble">${content}</div>`;
+            }
+
+            dialogContent.appendChild(messageDiv);
+            // 滚动到底部
+            dialogContent.scrollTop = dialogContent.scrollHeight;
+        }
+
+        // 添加API调用函数
+        async function fetchSpotData(cityName, spotName) {
+            try {
+                const response = await fetch(`http://127.0.0.1:5000/api/get_spot_detail?spot_name=${encodeURIComponent(spotName)}`);
+                const data = await response.json();
+                if (data.code === 200) {
+                    return data.data;
+                } else {
+                    console.error('获取景点数据失败:', data.msg);
+                    return null;
+                }
+             } catch (error) {
+                   console.error('API请求失败:', error);
+                   return null;
+            }
+        }
+
+        // API基础URL
+        const API_BASE_URL = 'http://127.0.0.1:5000/api';
+
+        // 发送自定义问题
+        async function sendCustomQuestion(question, figureName) {
+            try {
+                const response = await fetch(`${API_BASE_URL}/custom_question`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        question: question,
+                        figure_name: figureName
+                    })
+                });
+                const data = await response.json();
+                return data.code === 200 ? data.data.answer : '抱歉，暂时无法回答这个问题。';
+            } catch (error) {
+                console.error('发送问题失败:', error);
+                return '网络请求失败，请检查后端服务。';
+            }
+        }
+
+        // 获取实用指南
+        async function fetchPracticalGuide(spotName) {
+            try {
+                const response = await fetch(`${API_BASE_URL}/get_practical_guide?spot_name=${encodeURIComponent(spotName)}`);
+                const data = await response.json();
+                return data.code === 200 ? data.data : null;
+            } catch (error) {
+                console.error('获取实用指南失败:', error);
+                return null;
+            }
+        }
+
+
+
+
+        // 发送自定义消息
+        async function sendCustomMessage() {
+            const userInputText = userInput.value.trim();
+            if (!userInputText || !activeGuide) return;
+
+            // 添加用户消息
+            addMessage('user', userInputText);
+            userInput.value = '';
+
+            // 显示加载状态
+            addMessage('loading', '');
+
+            try {
+                const answer = await sendCustomQuestion(userInputText, activeGuide.person);
+                // 移除加载状态
+                dialogContent.removeChild(dialogContent.lastChild);
+                addMessage('guide', answer);
+            } catch (error) {
+                // 移除加载状态
+                dialogContent.removeChild(dialogContent.lastChild);
+                addMessage('guide', '抱歉，回答生成失败。');
+            }
+        }
+
+        // 打开实用指南弹窗
+        window.openGuideDialog = async function() {
+            if (!activeGuide) return;
+
+            const guideData = await fetchPracticalGuide(activeGuide.name);
+    
+            modalTitle.textContent = `${activeGuide.name} 实用指南`;
+    
+            if (guideData) {
+                modalBody.innerHTML = `
+                    <div class="guide-item">
+                        <div class="guide-item-title"><i class="fa fa-clock-o"></i> 开放时间</div>
+                        <div class="guide-item-content">${guideData.basic_info.open_time}</div>
+                    </div>
+                    <div class="guide-item">
+                        <div class="guide-item-title"><i class="fa fa-ticket"></i> 门票信息</div>
+                        <div class="guide-item-content">${guideData.basic_info.ticket_price}</div>
+                    </div>
+                    <div class="guide-item">
+                        <div class="guide-item-title"><i class="fa fa-exclamation-circle"></i> 避坑提醒</div>
+                        <div class="guide-item-content">${guideData.tips}</div>
+                    </div>
+                `;
+            } else {
+                modalBody.innerHTML = '<div class="guide-item-content">无法获取实用指南信息</div>';
+            }
+
+            guideModal.style.display = 'flex';
+        };
+
+        // 事件绑定
+        sendBtn.addEventListener('click', sendCustomMessage);
+        userInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !sendBtn.disabled) {
+                sendCustomMessage();
+            }
+        });
+        closeModal.addEventListener('click', () => {
+            guideModal.style.display = 'none';
+        });
+        window.addEventListener('click', (e) => {
+            if (e.target === guideModal) {
+                guideModal.style.display = 'none';
+            }
+        });
+        showGuideBtn.addEventListener('click', openGuideDialog);
+
+         
+
+    </script>
+</body>
+</html>

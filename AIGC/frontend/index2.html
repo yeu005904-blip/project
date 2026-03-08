@@ -1,0 +1,82 @@
+<!-- index.html 头部引入样式 -->
+<link rel="stylesheet" href="./common/reset.css">
+<link rel="stylesheet" href="./dialog/dialog.css">
+<link rel="stylesheet" href="./guide/guide.css">
+<link rel="stylesheet" href="./memory/memory.css">
+
+<!-- 身体部分预留模块容器 -->
+<div class="container">
+  <!-- 任务3的地图模块将嵌入此处 -->
+  <div id="map-container"></div>
+  <!-- 任务4的三大模块容器 -->
+  <div id="task4-container">
+    <div id="dialog-module">
+
+<!-- dialog.html 嵌入index.html的#dialog-module中 -->
+<div class="dialog-wrapper">
+  <!-- 标题区 -->
+  <h3 class="dialog-title">与历史人物对话</h3>
+  <!-- 预设话题区（3个固定按钮） -->
+  <div class="preset-topics">
+    <button class="topic-btn" data-topic="1">景点怎么建造的？</button>
+    <button class="topic-btn" data-topic="2">历史人物与景点的关联？</button>
+    <button class="topic-btn" data-topic="3">景点有哪些文化意义？</button>
+  </div>
+  <!-- 对话内容显示区（滚动容器，避免内容溢出） -->
+  <div class="dialog-content" id="dialogContent"></div>
+  <!-- 自定义提问区（输入框+发送按钮） -->
+  <div class="custom-question">
+    <input type="text" id="questionInput" placeholder="输入你想了解的问题...">
+    <button id="sendBtn">发送</button>
+  </div>
+</div>
+
+
+
+    </div> <!-- 对话模块 -->
+
+
+
+    <div id="guide-module">
+
+<!-- guide.html 嵌入index.html的#guide-module中 -->
+<div class="guide-wrapper">
+  <!-- 触发按钮（位于对话模块旁，与对话区同级） -->
+  <button id="guideBtn" class="guide-btn">查看实用指南</button>
+  <!-- 指南弹窗（默认隐藏，点击按钮后显示） -->
+  <div id="guideModal" class="guide-modal hidden">
+    <div class="modal-content">
+      <!-- 弹窗标题 -->
+      <h3 class="modal-title" id="guideTitle">西安-兵马俑实用指南</h3>
+      <!-- 指南内容列表 -->
+      <ul class="guide-list" id="guideList">
+        <li><span class="label">开放时间：</span><span id="openTime">8:30-17:00（16:30停止入园）</span></li>
+        <li><span class="label">避坑提醒：</span><span id="tip">节假日游客多，建议早9点前入园，避免排队超过2小时</span></li>
+      </ul>
+      <!-- 关闭按钮 -->
+      <button id="closeGuideBtn" class="close-btn">关闭</button>
+    </div>
+  </div>
+</div>
+
+    </div> <!-- 指南模块 -->
+
+
+
+
+    <div id="memory-module">
+
+<!-- memory.html 嵌入index.html的#memory-module中 -->
+<div class="memory-wrapper">
+  <button id="generateMemoryBtn" class="memory-btn">生成旅忆文档</button>
+</div>
+        
+    </div> <!-- 旅忆模块 -->
+  </div>
+</div>
+
+<!-- 底部引入脚本（确保DOM加载完成后执行） -->
+<script src="./dialog/dialog.js"></script>
+<script src="./guide/guide.js"></script>
+<script src="./memory/memory.js"></script>
+<script src="./common/utils.js"></script>

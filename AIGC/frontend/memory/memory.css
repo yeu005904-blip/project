@@ -1,0 +1,38 @@
+/* 旅忆生成按钮 */
+.memory-btn {
+  background-color: #8b5cf6;
+  color: white;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.memory-btn:hover {
+  background-color: #7c3aed;
+  transform: translateY(-1px);
+}
+
+.memory-btn:active {
+  transform: translateY(0);
+}
+
+/* 按钮图标样式 */
+.memory-btn::before {
+  content: "📝";
+  font-size: 18px;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+  .memory-btn {
+    padding: 8px 12px;
+    font-size: 14px;
+  }
+}

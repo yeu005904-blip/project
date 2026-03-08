@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+<<<<<<< HEAD
+      <module fileurl="file://$PROJECT_DIR$/.idea/AIGC.iml" filepath="$PROJECT_DIR$/.idea/AIGC.iml" />
+=======
+      <module fileurl="file://$PROJECT_DIR$/.idea/cut_friut_game.iml" filepath="$PROJECT_DIR$/.idea/cut_friut_game.iml" />
+>>>>>>> 381772d8d51088cdd909937b382c12e2cc241d2a
+    </modules>
+  </component>
+</project>
